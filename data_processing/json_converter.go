@@ -33,7 +33,7 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			err = os.WriteFile(f.Name()+".json", jsonData, 0644)
+			err = os.WriteFile("../data/"+f.Name()+".json", jsonData, 0644)
 			if err != nil {
 				log.Fatal(err)
 			}
