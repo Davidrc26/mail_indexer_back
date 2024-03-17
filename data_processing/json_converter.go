@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"../services"
+	"./services"
 )
 
 type folder struct {
@@ -36,12 +36,12 @@ func main() {
 				log.Fatal(err)
 			}
 			wg.Add(1)
-			go services.IndexData(jsonData, &wg)
+			go services.IndexData(jsonData, &wg, f.Name())
 
-			err = os.WriteFile("../data/"+f.Name()+".json", jsonData, 0644)
-			if err != nil {
+			/* err = os.WriteFile("../data/"+f.Name()+".json", jsonData, 0644) */
+			/* 	if err != nil {
 				log.Fatal(err)
-			}
+			} */
 		}(f)
 	}
 
