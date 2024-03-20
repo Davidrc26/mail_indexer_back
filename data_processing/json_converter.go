@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strings"
 	"sync"
@@ -19,9 +20,9 @@ type data struct {
 	Records []email `json:"records"`
 }
 type folder struct {
-	Name       string `json:"name"`
-	Data       []email
-	SubFolders []folder `json:"subfolders"`
+	Name       string   `json:"name"`
+	Data       [][]byte `json:"data"`
+	SubFolders [][]byte `json:"subfolders"`
 }
 
 type email struct {
@@ -150,6 +151,43 @@ func processFile(file string) email {
 		}
 	}
 	return data
+
+	/* const maxCapacity = 512 * 1024 */
+	/* f, err := os.Open(file)
+	if err != nil {
+		log.Fatal(err)
+	}
+	file_info, err := f.Stat()
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	size := file_info.Size()
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	data := make(map[string]interface{})
+	buf := make([]byte, 0, int(size))
+	scanner.Buffer(buf, int(size))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		parts := strings.SplitN(line, ":", 2)
+		if len(parts) == 2 {
+			key := strings.TrimSpace(parts[0])
+			value := strings.TrimSpace(parts[1])
+			data[key] = value
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Fatal(err)
+	} */
+
+	/* jsonData, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	} */
 }
 
 func IndexData(jsonData []byte, index string, wg *sync.WaitGroup) {
