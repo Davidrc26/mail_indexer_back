@@ -47,7 +47,7 @@ type email struct {
 }
 
 func main() {
-	maildir := "../../../enron_mail_20110402/maildir"
+	maildir := "../../enron_mail_20110402/maildir"
 	files, err := os.ReadDir(maildir)
 	start := time.Now()
 	if err != nil {
