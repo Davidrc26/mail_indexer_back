@@ -47,6 +47,7 @@ type email struct {
 }
 
 func main() {
+	initLogger()
 	maildir := "../../enron_mail_20110402/maildir"
 	files, err := os.ReadDir(maildir)
 	start := time.Now()
@@ -77,11 +78,25 @@ func main() {
 
 }
 
+func startIndexing() {
+
+}
+
+func initLogger() {
+	logFile, err := os.OpenFile("/logsindexer/log.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logFile.Close()
+
+	log.SetOutput(logFile)
+}
+
 func readFolder(folder_name string) []email {
 	var files, err = os.ReadDir(folder_name)
 	var object = make([]email, 0)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error leyendo el directorio" + folder_name + "\nDetalles: " + err.Error())
 	}
 	for _, f := range files {
 		if f.IsDir() {
@@ -97,7 +112,7 @@ func processFile(file string) email {
 	const maxCapacity = 512 * 1024
 	f, err := os.Open(file)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error procesando el archivo " + file + "\nDetalles: " + err.Error())
 	}
 	defer f.Close()
 
@@ -157,7 +172,8 @@ func IndexData(jsonData []byte, index string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	req, err := http.NewRequest("POST", "http://localhost:4080/api/_bulkv2", bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error generando la request para la indexación de la carpeta de: " + index + "\nDetalles:" + err.Error())
+		return
 	}
 	req.SetBasicAuth("admin", "#22171Drc#")
 	req.Header.Set("Content-Type", "application/json")
@@ -165,13 +181,15 @@ func IndexData(jsonData []byte, index string, wg *sync.WaitGroup) {
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error realizando la solicitud para crear e indexar el documento en el servidor de zincsearch\n" + "Directorio: " + index + "\nDetalles: " + err.Error())
+		return
 	}
 	defer resp.Body.Close()
 	log.Println(resp.StatusCode)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error leyendo el body de la respuesta del servidor de zincsearch\n" + "Detalles: " + err.Error())
+		return
 	}
 	fmt.Println(string(body))
 }
