@@ -19,11 +19,6 @@ type data struct {
 	Index   string  `json:"index"`
 	Records []email `json:"records"`
 }
-type folder struct {
-	Name       string   `json:"name"`
-	Data       [][]byte `json:"data"`
-	SubFolders [][]byte `json:"subfolders"`
-}
 
 type email struct {
 	ID                        int    `json:"ID"`
@@ -47,10 +42,28 @@ type email struct {
 }
 
 func main() {
-	initLogger()
+	logFile, err := os.OpenFile("logsindexer/log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer logFile.Close()
+
+	log.SetOutput(logFile)
+	start := time.Now()
+	startIndexing()
+	end := time.Now()
+
+	fmt.Println("Time taken: ", end.Sub(start))
+	log.Println("Time taken: ", end.Sub(start))
+	log.Println("Execution finished")
+
+}
+
+func startIndexing() {
+	log.Println("prueba de escritura desde otra funcion")
 	maildir := "../../enron_mail_20110402/maildir"
 	files, err := os.ReadDir(maildir)
-	start := time.Now()
+
 	if err != nil {
 		log.Println(err)
 	}
@@ -67,32 +80,27 @@ func main() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			wg.Add(1)
-			go IndexData(jsonData, f.Name(), &wg)
+			IndexData(jsonData, f.Name())
 		}(f)
 	}
 	wg.Wait()
-	end := time.Now()
-
-	fmt.Println("Time taken: ", end.Sub(start))
-
 }
 
-func startIndexing() {
-
-}
-
-func initLogger() {
-	logFile, err := os.OpenFile("/logsindexer/log.txt", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+func InitLogger() {
+	logFile, err := os.OpenFile("logsindexer/log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer logFile.Close()
 
 	log.SetOutput(logFile)
+	log.Println("prueba")
+	log.Writer().Write([]byte("Prueba con writer"))
+
 }
 
 func readFolder(folder_name string) []email {
+
 	var files, err = os.ReadDir(folder_name)
 	var object = make([]email, 0)
 	if err != nil {
@@ -115,11 +123,15 @@ func processFile(file string) email {
 		log.Println("Error procesando el archivo " + file + "\nDetalles: " + err.Error())
 	}
 	defer f.Close()
-
+	file_info, err := f.Stat()
+	if err != nil {
+		log.Println("Error obteniendo la información del archivo " + file + "\nDetalles: " + err.Error())
+		return email{}
+	}
 	scanner := bufio.NewScanner(f)
 	data := email{}
-	buf := make([]byte, 0, maxCapacity)
-	scanner.Buffer(buf, maxCapacity)
+	buf := make([]byte, 0, file_info.Size())
+	scanner.Buffer(buf, int(file_info.Size()))
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -168,8 +180,7 @@ func processFile(file string) email {
 	return data
 }
 
-func IndexData(jsonData []byte, index string, wg *sync.WaitGroup) {
-	defer wg.Done()
+func IndexData(jsonData []byte, index string) {
 	req, err := http.NewRequest("POST", "http://localhost:4080/api/_bulkv2", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Println("Error generando la request para la indexación de la carpeta de: " + index + "\nDetalles:" + err.Error())
