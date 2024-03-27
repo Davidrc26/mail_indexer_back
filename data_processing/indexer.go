@@ -10,6 +10,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"runtime"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +44,13 @@ type email struct {
 }
 
 func main() {
+	cpu, err := os.Create("profiling/cpu.prof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(cpu)
+	defer pprof.StopCPUProfile()
+
 	logFile, err := os.OpenFile("logsindexer/log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatal(err)
@@ -57,10 +66,19 @@ func main() {
 	log.Println("Time taken: ", end.Sub(start))
 	log.Println("Execution finished")
 
+	runtime.GC()
+	mem, err := os.Create("profiling/memory.prof")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer mem.Close()
+	if err := pprof.WriteHeapProfile(mem); err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 func startIndexing() {
-	log.Println("prueba de escritura desde otra funcion")
 	maildir := "../../enron_mail_20110402/maildir"
 	files, err := os.ReadDir(maildir)
 
@@ -75,10 +93,10 @@ func startIndexing() {
 		go func(f os.DirEntry) {
 			defer wg.Done()
 			result := readFolder(maildir + "/" + f.Name())
-			bulk := data{Index: f.Name(), Records: result}
+			bulk := data{Index: "maildir", Records: result}
 			jsonData, err := json.MarshalIndent(bulk, "", "  ")
 			if err != nil {
-				log.Fatal(err)
+				log.Println(err)
 			}
 			IndexData(jsonData, f.Name())
 		}(f)
@@ -86,25 +104,12 @@ func startIndexing() {
 	wg.Wait()
 }
 
-func InitLogger() {
-	logFile, err := os.OpenFile("logsindexer/log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer logFile.Close()
-
-	log.SetOutput(logFile)
-	log.Println("prueba")
-	log.Writer().Write([]byte("Prueba con writer"))
-
-}
-
 func readFolder(folder_name string) []email {
-
 	var files, err = os.ReadDir(folder_name)
 	var object = make([]email, 0)
 	if err != nil {
 		log.Println("Error leyendo el directorio" + folder_name + "\nDetalles: " + err.Error())
+		return object
 	}
 	for _, f := range files {
 		if f.IsDir() {
@@ -119,26 +124,24 @@ func readFolder(folder_name string) []email {
 func processFile(file string) email {
 	const maxCapacity = 512 * 1024
 	f, err := os.Open(file)
+
 	if err != nil {
 		log.Println("Error procesando el archivo " + file + "\nDetalles: " + err.Error())
-	}
-	defer f.Close()
-	file_info, err := f.Stat()
-	if err != nil {
-		log.Println("Error obteniendo la información del archivo " + file + "\nDetalles: " + err.Error())
 		return email{}
 	}
+
+	defer f.Close()
 	scanner := bufio.NewScanner(f)
 	data := email{}
-	buf := make([]byte, 0, file_info.Size())
-	scanner.Buffer(buf, int(file_info.Size()))
+	buf := make([]byte, 0, maxCapacity)
+	scanner.Buffer(buf, maxCapacity)
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
+		i := strings.Index(line, ":")
+		if i >= 0 {
+			key := strings.TrimSpace(line[:i])
+			value := strings.TrimSpace(line[i+1:])
 			switch key {
 			case "Message-ID":
 				data.Message_ID = value
