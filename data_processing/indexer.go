@@ -189,7 +189,7 @@ func IndexData(jsonData []byte, index string) {
 		log.Println("Error generando la request para la indexación de la carpeta de: " + index + "\nDetalles:" + err.Error())
 		return
 	}
-	req.SetBasicAuth("admin", "#22171Drc#")
+	req.SetBasicAuth("yourZincsearchUser", "yourZincsearchPassword")
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36")
 
